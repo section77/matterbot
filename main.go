@@ -26,14 +26,14 @@ var (
 )
 
 func main() {
-	logger.Infof("startup")
 	flag.Parse()
 
 	if *logVerbose {
 		logger.SetLogLevel(logger.DebugLevel)
 	} else if *logDisabled {
-		logger.SetLogLevel(logger.Disabled)
+		logger.SetLogLevel(logger.ErrorLevel)
 	}
+	logger.Infof("startup")
 
 	url, err := url.Parse(*mattermostURL)
 	if err != nil {
