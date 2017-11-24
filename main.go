@@ -23,9 +23,10 @@ var (
 	mattermostUser = flag.String("mattermost-user", "matterbot", "mattermost user")
 	mattermostPass = flag.String("mattermost-pass", "tobrettam", "mattermost password")
 
-	mailHost = flag.String("mail-host", "127.0.0.1:25", "mail-server host (<HOST>:<PORT>)")
-	mailUser = flag.String("mail-user", "matterbot@localhost", "mail login user")
-	mailPass = flag.String("mail-pass", "tobrettam", "mail login pass")
+	mailHost   = flag.String("mail-host", "127.0.0.1:25", "mail-server host (<HOST>:<PORT>)")
+	mailUser   = flag.String("mail-user", "matterbot@localhost", "mail login user")
+	mailPass   = flag.String("mail-pass", "tobrettam", "mail login pass")
+	mailUseTLS = flag.Bool("mail-use-tls", false, "use TLS instead of STARTTLS")
 
 	forward = flag.String("forward", "",
 		"mapping from marker to receiver mail address. example: 'user1=user1@gmail.com,user2=abc@mail.com'")

@@ -36,7 +36,7 @@ func dispatch(chatServer chat.Server, mailServer mail.Server, fwdMappings []fwdM
 					logger.Infof("forward message with marker: '%s' to %s", m.marker, m.mailAddr)
 
 					// send the mail
-					if err = mailServer.Send(composeMessage(&msg, content, m.mailAddr)); err != nil {
+					if err = mailServer.Send(composeMessage(&msg, content, m.mailAddr), *mailUseTLS); err != nil {
 						logger.Errorf("unable to send mail - notify user in chat - mail error: %s", err.Error())
 						if err = chatServer.Send(&chat.Message{
 							ReplyToID:   msg.ID,

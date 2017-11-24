@@ -24,7 +24,7 @@ func (mock *ServerMock) SetMailServerError(err error) {
 // Send emulates an send-action and saves all messages in the mock.
 // If the 'SetMailServerError' are called with an error, this function
 // returns the stored error.
-func (mock *ServerMock) Send(msg *Message) error {
+func (mock *ServerMock) Send(msg *Message, useTLS bool) error {
 	if mock.MailServerError == nil {
 		logger.Debugf("send per mail: %s", msg.Content)
 		mock.Messages = append(mock.Messages, msg)
