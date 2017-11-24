@@ -34,3 +34,8 @@ func (mock *ServerMock) Send(msg *Message) error {
 	logger.Debugf("mail-mock is configured to trigger an error - returning the error")
 	return mock.MailServerError
 }
+
+// ClearMessages removes all stored mail messages from the mock
+func (mock *ServerMock) ClearMessages() {
+	mock.Messages = nil
+}

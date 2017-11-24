@@ -96,6 +96,8 @@ func (m *Mattermost) Listen() (<-chan Message, <-chan error, error) {
 				return
 			} else if event.Event == model.WEBSOCKET_EVENT_POSTED {
 				if post := model.PostFromJson(strings.NewReader(event.Data["post"].(string))); post != nil {
+					// TODO: maybe cache the 'userName' and 'channelName'?
+
 					userName := "id:" + post.UserId
 					if user, err := m.GetUser(post.UserId); err == nil {
 						userName = user.Username

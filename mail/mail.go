@@ -2,6 +2,7 @@
 package mail
 
 import (
+	"net"
 	"net/smtp"
 
 	"github.com/section77/matterbot/logger"
@@ -43,19 +44,22 @@ type serverImpl struct {
 
 // Send the given message
 func (s *serverImpl) Send(msg *Message) error {
+	// the host part in the auth part can't have a port number
+	host, _, _ := net.SplitHostPort(s.host)
 	auth := smtp.PlainAuth(
 		"",
 		s.user,
 		s.pass,
-		s.host,
+		host,
 	)
 
-	logger.Info("send mail ...")
+	logger.Debugf("send mail - host: %s, from: %s, to: %s",
+		s.host, msg.Header.From, msg.Header.To)
 	return smtp.SendMail(
 		s.host,
 		auth,
-		"matterbot@section77.de",
-		[]string{"matterbot@j-keck.net"},
+		msg.Header.From,
+		[]string{msg.Header.To},
 		[]byte(msg.Body),
 	)
 }

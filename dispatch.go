@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/section77/matterbot/chat"
 	"github.com/section77/matterbot/logger"
@@ -11,12 +12,12 @@ import (
 )
 
 // the dispatch function listens for new chat messages and forwards the messages
-// to the mailing-list if their start with the '@ml' prefix
+// per mail if their start with a special marker
 //
 //   - dispatch block's until a error occurs
-//   - if the message can't be fowarded to the mailing-list, the mail-server error
+//   - if the message can't be fowarded to per mail, the mail-server error
 //     message are send as a reply to the original message in the chat-system
-func dispatch(chatServer chat.Server, mailServer mail.Server) error {
+func dispatch(chatServer chat.Server, mailServer mail.Server, fwdMappings []fwdMapping) error {
 	msgC, errC, err := chatServer.Listen()
 	if err != nil {
 		return err
@@ -26,37 +27,32 @@ func dispatch(chatServer chat.Server, mailServer mail.Server) error {
 	for {
 		select {
 		case msg := <-msgC:
-			content := strings.TrimSpace(msg.Content)
 
-			// marker prefixes - every message which starts which any of this prefixes are broadcasted
-			//  TODO: make this configurable? mapping of prefix -> receiver?
-			//    - @ml-orga -> orga@....
-			//    - @ml-intern -> mitglieder@...
-			prefixes := []string{"@ml ", "@ml,"}
+			if mappings, content, found := findMappings(msg.Content, fwdMappings); found {
+				logger.Infof("%d marker found - chat-msg from: %s, in channel: %s - forward to each recipient",
+					len(mappings), msg.UserName, msg.ChannelName)
 
-			if prefix, found := prefix(content, prefixes); found {
-				logger.Infof("prefix: '%s' found, broadcast chat message to ml - from: %s in channel: %s",
-					prefix, msg.UserName, msg.ChannelName)
+				for _, m := range mappings {
+					logger.Infof("forward message with marker: '%s' to %s", m.marker, m.mailAddr)
 
-				// remove the marker prefix
-				msg.Content = strings.TrimLeft(content, prefix)
-
-				// send the mail
-				if err = mailServer.Send(composeMessageFromChat(&msg)); err != nil {
-					logger.Errorf("unable to send mail - notify user in chat - mail error: %s", err.Error())
-					if err = chatServer.Send(&chat.Message{
-						ReplyToID:   msg.ID,
-						ChannelID:   msg.ChannelID,
-						ChannelName: msg.ChannelName,
-						Content:     "matterbot error: " + err.Error(),
-					}); err != nil {
-						logger.Errorf("unable to notify user about mail error - i give up - sorry! - chat error: %s",
-							err.Error())
+					// send the mail
+					if err = mailServer.Send(composeMessage(&msg, content, m.mailAddr)); err != nil {
+						logger.Errorf("unable to send mail - notify user in chat - mail error: %s", err.Error())
+						if err = chatServer.Send(&chat.Message{
+							ReplyToID:   msg.ID,
+							ChannelID:   msg.ChannelID,
+							ChannelName: msg.ChannelName,
+							Content:     "matterbot error: " + err.Error(),
+						}); err != nil {
+							logger.Errorf("unable to notify user about mail error - i give up - sorry! - chat error: %s",
+								err.Error())
+						}
+					} else {
+						logger.Debugf("mail to %s delivered", m.mailAddr)
 					}
 				}
-
 			} else {
-				logger.Debugf("ignore message from: '%s' - didn't contain the '@ml' prefix", msg.UserName)
+				logger.Debugf("ignore message from: '%s' - didn't contain any configured marker", msg.UserName)
 			}
 		case chatErr := <-errC:
 			return chatErr
@@ -64,29 +60,55 @@ func dispatch(chatServer chat.Server, mailServer mail.Server) error {
 	}
 }
 
-// if the given string starts with any of the given prefixes, return the found prefix
-//
-//   returns:
-//     - found:     ("<PREFIX>", true)
-//     - not found: ("", false)
-func prefix(s string, ps []string) (string, bool) {
-	for _, p := range ps {
-		if strings.HasPrefix(s, p) {
-			return p, true
+// find all mappings from the given content
+func findMappings(content string, allFwdMappings []fwdMapping) ([]fwdMapping, string, bool) {
+	foundFwdMappings := []fwdMapping{}
+
+	isSeparator := func(c rune) bool {
+		return c == ' ' || c == ','
+	}
+	splitAt := func(s string, n int) (string, string) {
+		if n > 0 && len(s) > n {
+			return s[:n], s[n:]
+		}
+		return s, ""
+	}
+
+	var foundMarker string
+
+	// we mutate this 'work' variable in each loop to remove and '@xxx' marker
+	work := strings.TrimLeftFunc(content, unicode.IsSpace)
+	for strings.HasPrefix(work, "@") {
+		foundMarker, work = splitAt(work, strings.IndexFunc(work, isSeparator))
+
+		// remove the separator from the content
+		work = strings.TrimLeftFunc(work, isSeparator)
+
+		// is the marker defined in 'allFwdMappings', add it to 'foundFwdMappings'
+		for _, m := range allFwdMappings {
+			if foundMarker == "@"+m.marker {
+				foundFwdMappings = append(foundFwdMappings, m)
+			}
 		}
 	}
-	return "", false
+
+	return foundFwdMappings, work, len(foundFwdMappings) > 0
 }
 
-// compose a mail message from the given chat message
-func composeMessageFromChat(msg *chat.Message) *mail.Message {
-	subject := fmt.Sprintf("Broadcast von chat.section77.de - '%s' schrieb in '%s'", msg.UserName, msg.ChannelName)
+// compose a mail message from a chat message
+
+//   * meta-data are used from the given chat-message
+//   * mail-content are used from the given 'content' paramter
+func composeMessage(msg *chat.Message, content string, to string) *mail.Message {
+	// TODO: mail subject configurable with placeholders like '$channel$, $user$, ...)
+	subject := fmt.Sprintf("'%s' writes in mattermost channel: '%s'", msg.UserName, msg.ChannelName)
+
 	// time format (https://tools.ietf.org/html/rfc5322#section-3.3)
 	tsFmt := "Mon, 02 Jan 2006 15:04:05 MST"
 	return mail.ComposeMessage(mail.Header{
-		From:      "matterbot@section77.de",
-		To:        "j@j-keck.net",
+		From:      *mailUser,
+		To:        to,
 		Subject:   subject,
 		Timestamp: time.Now().Format(tsFmt),
-	}, msg.Content)
+	}, content)
 }
