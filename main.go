@@ -21,6 +21,8 @@ var (
 	logVerbose  = flag.Bool("v", false, "enable verbose / debug output")
 	logDisabled = flag.Bool("q", false, "disable logging / be quite")
 
+	showVersion = flag.Bool("V", false, "show version and exit")
+
 	mattermostURL  = flag.String("mattermost-url", "http://127.0.0.1:8065", "mattermost url (http://x.x.x.x:xxxx)")
 	mattermostUser = flag.String("mattermost-user", "matterbot", "mattermost user")
 	mattermostPass = flag.String("mattermost-pass", "tobrettam", "mattermost password")
@@ -44,6 +46,8 @@ var (
 var mailSubjectTemplate *template.Template
 var mailBodyTemplate *template.Template
 
+var version string
+
 func main() {
 
 	//
@@ -51,12 +55,16 @@ func main() {
 	//
 	flag.Parse()
 
+	if *showVersion {
+		println("matterbot: v" + version)
+		os.Exit(0)
+	}
+
 	if *logVerbose {
 		logger.SetLogLevel(logger.DebugLevel)
 	} else if *logDisabled {
 		logger.SetLogLevel(logger.ErrorLevel)
 	}
-	logger.Infof("startup")
 
 	url, err := url.Parse(*mattermostURL)
 	if err != nil {
@@ -87,6 +95,7 @@ func main() {
 	//   * connect to mattermost
 	//   * call 'dispatch' with forwards the messages if their contains a marker
 	//   * if an error orccurs, reconnect to the mattermost server
+	logger.Infof("startup - matterbot: v%s", version)
 	for {
 		logger.Info("connect to chat-server ...")
 		chatServer, err := chat.Connect(url, *mattermostUser, *mattermostPass)
