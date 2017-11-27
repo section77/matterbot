@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/namsral/flag"
@@ -15,6 +16,7 @@ import (
 	"github.com/section77/matterbot/mail"
 )
 
+// flags
 var (
 	logVerbose  = flag.Bool("v", false, "enable verbose / debug output")
 	logDisabled = flag.Bool("q", false, "disable logging / be quite")
@@ -28,11 +30,25 @@ var (
 	mailPass   = flag.String("mail-pass", "tobrettam", "mail login pass")
 	mailUseTLS = flag.Bool("mail-use-tls", false, "use TLS instead of STARTTLS")
 
+	mailSubject = flag.String("mail-subject",
+		"Forwarding from mattermost: {{.User}} writes in channel {{.Channel}}",
+		"mail subject")
+	mailBody = flag.String("mail-body",
+		"{{.Content}}",
+		"mail body")
+
 	forward = flag.String("forward", "",
 		"mapping from marker to receiver mail address. example: 'user1=user1@gmail.com,user2=abc@mail.com'")
 )
 
+var mailSubjectTemplate *template.Template
+var mailBodyTemplate *template.Template
+
 func main() {
+
+	//
+	// parse and process commad line args
+	//
 	flag.Parse()
 
 	if *logVerbose {
@@ -56,6 +72,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	if mailSubjectTemplate, err = template.New("mail-subject").Parse(*mailSubject); err != nil {
+		logger.Errorf("invalid template for mail-subject - error: %s", err.Error())
+		os.Exit(1)
+	}
+	if mailBodyTemplate, err = template.New("mail-body").Parse(*mailBody); err != nil {
+		logger.Errorf("invalid template for mail-body - error: %s", err.Error())
+		os.Exit(1)
+	}
+
+	//
+	// "main loop"
+	//
+	//   * connect to mattermost
+	//   * call 'dispatch' with forwards the messages if their contains a marker
+	//   * if an error orccurs, reconnect to the mattermost server
 	for {
 		logger.Info("connect to chat-server ...")
 		chatServer, err := chat.Connect(url, *mattermostUser, *mattermostPass)
@@ -71,6 +102,7 @@ func main() {
 	}
 }
 
+// fwdMapping contains a pair of a marker and a corresponding mail-address.
 type fwdMapping struct {
 	marker   string
 	mailAddr string

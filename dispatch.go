@@ -1,8 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"bufio"
+	"bytes"
 	"strings"
+	"text/template"
 	"time"
 	"unicode"
 
@@ -23,12 +25,12 @@ func dispatch(chatServer chat.Server, mailServer mail.Server, fwdMappings []fwdM
 		return err
 	}
 
-	logger.Info("waiting for chat messages to broadcast ...")
 	for {
+		logger.Info("observe chat for messages to forward")
 		select {
 		case msg := <-msgC:
 
-			if mappings, content, found := findMappings(msg.Content, fwdMappings); found {
+			if mappings, content, found := findFwdMappings(msg.Content, fwdMappings); found {
 				logger.Infof("%d marker found - chat-msg from: %s, in channel: %s - forward to each recipient",
 					len(mappings), msg.UserName, msg.ChannelName)
 
@@ -60,13 +62,18 @@ func dispatch(chatServer chat.Server, mailServer mail.Server, fwdMappings []fwdM
 	}
 }
 
-// find all mappings from the given content
-func findMappings(content string, allFwdMappings []fwdMapping) ([]fwdMapping, string, bool) {
+// find all mappings in the given content
+//
+// returns all found forward-mappings and the content with all markers removed
+func findFwdMappings(content string, allFwdMappings []fwdMapping) ([]fwdMapping, string, bool) {
 	foundFwdMappings := []fwdMapping{}
 
+	// marker or message-content can be separated with space or comma
 	isSeparator := func(c rune) bool {
 		return c == ' ' || c == ','
 	}
+
+	// split's the given string at the given position
 	splitAt := func(s string, n int) (string, string) {
 		if n > 0 && len(s) > n {
 			return s[:n], s[n:]
@@ -74,19 +81,21 @@ func findMappings(content string, allFwdMappings []fwdMapping) ([]fwdMapping, st
 		return s, ""
 	}
 
-	var foundMarker string
+	var actualMarker string
 
-	// we mutate this 'work' variable in each loop to remove and '@xxx' marker
+	// we mutate this 'work' variable in each loop to remove any found '@xxx' marker
 	work := strings.TrimLeftFunc(content, unicode.IsSpace)
 	for strings.HasPrefix(work, "@") {
-		foundMarker, work = splitAt(work, strings.IndexFunc(work, isSeparator))
+		// 'actualMarker' contains any found '@xxx' marker, and 'work' contains the
+		// message-content without the 'actualMarker'
+		actualMarker, work = splitAt(work, strings.IndexFunc(work, isSeparator))
 
-		// remove the separator from the content
+		// remove any separator from the content
 		work = strings.TrimLeftFunc(work, isSeparator)
 
-		// is the marker defined in 'allFwdMappings', add it to 'foundFwdMappings'
+		// is the marker defined in 'allFwdMappings' - then add it to 'foundFwdMappings'
 		for _, m := range allFwdMappings {
-			if foundMarker == "@"+m.marker {
+			if actualMarker == "@"+m.marker {
 				foundFwdMappings = append(foundFwdMappings, m)
 			}
 		}
@@ -96,12 +105,30 @@ func findMappings(content string, allFwdMappings []fwdMapping) ([]fwdMapping, st
 }
 
 // compose a mail message from a chat message
-
+//
 //   * meta-data are used from the given chat-message
 //   * mail-content are used from the given 'content' paramter
 func composeMessage(msg *chat.Message, content string, to string) *mail.Message {
-	// TODO: mail subject configurable with placeholders like '$channel$, $user$, ...)
-	subject := fmt.Sprintf("'%s' writes in mattermost channel: '%s'", msg.UserName, msg.ChannelName)
+	type TemplateData struct {
+		User, Channel, Content string
+	}
+	data := TemplateData{
+		User:    msg.UserName,
+		Channel: msg.ChannelName,
+		Content: content,
+	}
+
+	subject, err := execTemplate(mailSubjectTemplate, data)
+	if err != nil {
+		logger.Error(err.Error())
+		subject = err.Error()
+	}
+
+	body, err := execTemplate(mailBodyTemplate, data)
+	if err != nil {
+		logger.Error(err.Error())
+		body = err.Error()
+	}
 
 	// time format (https://tools.ietf.org/html/rfc5322#section-3.3)
 	tsFmt := "Mon, 02 Jan 2006 15:04:05 MST"
@@ -110,5 +137,17 @@ func composeMessage(msg *chat.Message, content string, to string) *mail.Message 
 		To:        to,
 		Subject:   subject,
 		Timestamp: time.Now().Format(tsFmt),
-	}, content)
+	}, body)
+}
+
+func execTemplate(template *template.Template, data interface{}) (string, error) {
+	var buf bytes.Buffer
+
+	writer := bufio.NewWriter(&buf)
+	if err := template.Execute(writer, data); err != nil {
+		return "", err
+	}
+	writer.Flush()
+
+	return buf.String(), nil
 }
