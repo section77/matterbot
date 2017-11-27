@@ -40,8 +40,8 @@ You can set the parameters per command line, or over environment variables.
 |-mail-host      | MAIL_HOST       | mail host with port _(127.0.0.1:25)_       |
 |-mail-user      | MAIL_USER       | mail user _(matterbot@localhost)_          |
 |-mail-pass      | MAIL_PASS       | mail password _(tobrettam)_                |
-|-mail-use-tls   | MAIL_USE_TLS    | use TLS instead of STARTTLS _(false -> use STARTTLS)_ |
-|-mail-subject   | MAIL_SUBJECT    | _(Forwarding from mattermost: {{.User}} writes in channel {{.Channel}})_ |
+|-mail-use-tls   | MAIL_USE_TLS    | use TLS instead of STARTTLS _(false -> use STARTTLS)_    |
+|-mail-subject   | MAIL_SUBJECT    | _(mattermost: {{.User}} writes in channel {{.Channel}})_ |
 |-mail-body      | MAIL_BODY       | _({{.Body}})_                              |
 |-quiet          | QUIET           | be quiet _(false)_                         |
 |-verbose        | VERBOSE         | enable verbose output _(false)_            |

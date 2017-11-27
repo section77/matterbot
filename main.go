@@ -33,7 +33,7 @@ var (
 	mailUseTLS = flag.Bool("mail-use-tls", false, "use TLS instead of STARTTLS")
 
 	mailSubject = flag.String("mail-subject",
-		"Forwarding from mattermost: {{.User}} writes in channel {{.Channel}}",
+		"mattermost: {{.User}} writes in channel {{.Channel}}",
 		"mail subject")
 	mailBody = flag.String("mail-body",
 		"{{.Content}}",
