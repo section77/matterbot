@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -74,6 +73,10 @@ func main() {
 
 	mailServer := mail.New(*mailHost, *mailUser, *mailPass)
 
+	if len(*forward) == 0 {
+		println("flag '-forward' are mandatory - see usage with the '-h' flag")
+		os.Exit(1)
+	}
 	fwdMappings, err := parseFwdMappings(*forward)
 	if err != nil {
 		logger.Errorf("unable to parse flag 'forward'. error: %s", err.Error())
@@ -118,15 +121,11 @@ type fwdMapping struct {
 }
 
 func parseFwdMappings(s string) ([]fwdMapping, error) {
-	if len(s) == 0 {
-		return nil, errors.New("flag 'forward' are mandatory")
-	}
-
 	fwdMappings := []fwdMapping{}
 	for _, mapping := range strings.Split(s, ",") {
 		x := strings.Split(mapping, "=")
 		if len(x) != 2 {
-			msg := "invalid format in flag 'forward': '%s' - valid example: 'user=abc@mail.com'"
+			msg := "invalid format: '%s' - valid example: 'user=abc@mail.com'"
 			return nil, fmt.Errorf(msg, mapping)
 		}
 		marker := strings.TrimSpace(x[0])
