@@ -18,16 +18,16 @@ import (
 
 // flags
 var (
-	logVerbose  = flag.Bool("v", false, "enable verbose / debug output")
-	logDisabled = flag.Bool("q", false, "disable logging / be quite")
+	logVerbose  = flag.Bool("verbose", false, "enable verbose / debug output")
+	logDisabled = flag.Bool("quiet", false, "disable logging / be quiet")
 
-	showVersion = flag.Bool("V", false, "show version and exit")
+	showVersion = flag.Bool("v", false, "show version and exit")
 
-	mattermostURL  = flag.String("mattermost-url", "http://127.0.0.1:8065", "mattermost url (http://x.x.x.x:xxxx)")
+	mattermostURL  = flag.String("mattermost-url", "http://127.0.0.1:8065", "mattermost url")
 	mattermostUser = flag.String("mattermost-user", "matterbot", "mattermost user")
 	mattermostPass = flag.String("mattermost-pass", "tobrettam", "mattermost password")
 
-	mailHost   = flag.String("mail-host", "127.0.0.1:25", "mail-server host (<HOST>:<PORT>)")
+	mailHost   = flag.String("mail-host", "127.0.0.1:25", "mail-server host")
 	mailUser   = flag.String("mail-user", "matterbot@localhost", "mail login user")
 	mailPass   = flag.String("mail-pass", "tobrettam", "mail login pass")
 	mailUseTLS = flag.Bool("mail-use-tls", false, "use TLS instead of STARTTLS")
