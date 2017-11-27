@@ -12,6 +12,7 @@ func ComposeMessage(header Header, content string) *Message {
 	mcb.AppendHeader("To", header.To)
 	mcb.AppendHeader("Subject", header.Subject)
 	mcb.AppendHeader("Date", header.Timestamp)
+	mcb.AppendHeader("Content-type", "text/plain; charset=utf-8")
 	mcb.AppendContent(content)
 
 	return &Message{header, mcb.String(), content}
