@@ -47,7 +47,30 @@ var mailBodyTemplate *template.Template
 
 var version string
 
+var usage = `
+matterbot forwards mattermost messages per mail, if their contains a configurable prefix marker.
+
+
+Usage:
+
+  To forward messages to 'user1@mail.com' and 'abc@example.com' call matterbot
+  with the '-forward' flag:
+
+    ./matterbot ... -forward user1=user1@mail.com,user2=abc@example.com ...
+
+  If the chat-message contains any of the given prefix marker ('@user1', '@user2'),
+  the message are send to the given mail address.
+
+Flags:
+
+`
+
 func main() {
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, usage)
+		flag.PrintDefaults()
+	}
 
 	//
 	// parse and process commad line args
