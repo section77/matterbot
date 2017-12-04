@@ -22,12 +22,7 @@ and you write a message in mattermost with any of the configured marker prefixes
 an email to `user1@mail.com` and `abc@example.com` with the body: `we meet us at 4pm` are send.
 
 
-## Usage
-
-FIXME
-
-
-### Arguments / Flags
+## Arguments / Flags
 
 You can set the parameters per command line, or over environment variables.
 
@@ -47,8 +42,6 @@ You can set the parameters per command line, or over environment variables.
 |-verbose        | VERBOSE         | enable verbose output _(false)_            |
 
 
-
-
 ## Run it
 
 **matterbot** can run as an native application or in an docker container.
@@ -57,7 +50,7 @@ You can set the parameters per command line, or over environment variables.
 
 - clone this repository: `git clone https://github.com/section77/matterbot.git`
 
-- build **matterbot**: `go build -ldflags "-X main.version=$(git describe --tags)"`
+- build **matterbot**: `go build -ldflags "-X main.version=$(git describe --tags --always)"`
 
 - run it
 ```
@@ -81,9 +74,11 @@ You can use a prebuild container (a) or create you own container (b)
 
 #### b.) Build your own container
 
-- clone this repository: `git clone https://github.com/section77/matterbot.git`
+_Note 1: this build is a multi-stage build so you need docker >= 17.05_
 
-- build **matterbot**: `go build -ldflags "-X main.version=$(git describe --tags)"`
+_Note 2: the build image has ~650MB_
+
+- clone this repository: `git clone https://github.com/section77/matterbot.git`
 
 - create an container: `docker build -t matterbot .`
 
@@ -91,7 +86,7 @@ You can use a prebuild container (a) or create you own container (b)
 
 ```
 docker run --rm \
-  --env FORWARD=user1=user1@mail.com,user2=abc@example.com
+  --env FORWARD=user1=user1@mail.com,user2=abc@example.com \
   --env MATTERMOST_URL=http://ip:port \
   --env MATTERMOST_USER=muser \
   --env MATTERMOST_PASS=mpass \
@@ -99,5 +94,53 @@ docker run --rm \
   --env MAIL_USER=my-gmail-account@gmail.com \
   --env MAIL_PASS=my-gmail-pass \
   --env MAIL_USE_TLS=true \
-  -t matterbot jkeck/matterbot
+  --name matterbot \
+  jkeck/matterbot
+```
+
+## Usage
+
+```
+⟩ ./matterbot -h
+
+matterbot forwards mattermost messages per mail, if their contains a configurable prefix marker.
+
+
+Usage:
+
+  To forward messages to 'user1@mail.com' and 'abc@example.com' call matterbot
+  with the '-forward' flag:
+
+    ./matterbot ... -forward user1=user1@mail.com,user2=abc@example.com ...
+
+  If the chat-message contains any of the given prefix marker ('@user1', '@user2'),
+  the message are send to the given mail address.
+
+Flags:
+
+  -forward string
+        mapping from marker to receiver mail address. example: 'user1=user1@gmail.com,user2=abc@mail.com'
+  -mail-body string
+        mail body (default "{{.Content}}")
+  -mail-host string
+        mail-server host (default "127.0.0.1:25")
+  -mail-pass string
+        mail login pass (default "tobrettam")
+  -mail-subject string
+        mail subject (default "mattermost: {{.User}} writes in channel {{.Channel}}")
+  -mail-use-tls
+        use TLS instead of STARTTLS
+  -mail-user string
+        mail login user (default "matterbot@localhost")
+  -mattermost-pass string
+        mattermost password (default "tobrettam")
+  -mattermost-url string
+        mattermost url (default "http://127.0.0.1:8065")
+  -mattermost-user string
+        mattermost user (default "matterbot")
+  -quiet
+        disable logging / be quiet
+  -v	show version and exit
+  -verbose
+        enable verbose / debug output
 ```
